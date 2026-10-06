@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 project(quanta VERSION 0.1 LANGUAGES CXX)
+cmake_policy(SET CMP0135 NEW)
 
 # --- Language settings ---
 set(CMAKE_CXX_STANDARD 17)
@@ -12,10 +13,13 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
 endif()
 
-# --- Core library (header-only for now) ---
-add_library(quanta_core INTERFACE)
-target_include_directories(quanta_core INTERFACE ${CMAKE_SOURCE_DIR}/include)
-target_compile_options(quanta_core INTERFACE -Wall -Wextra -Wpedantic)
+# --- Core library: now has real .cpp files, so it's a STATIC library ---
+add_library(quanta_core STATIC
+  src/orders/order.cpp
+  src/traders/trader.cpp
+)
+target_include_directories(quanta_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_compile_options(quanta_core PUBLIC -Wall -Wextra -Wpedantic)
 
 # --- Download GoogleTest automatically ---
 include(FetchContent)
