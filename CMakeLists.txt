@@ -18,6 +18,7 @@ add_library(quanta_core STATIC
   src/orders/order.cpp
   src/traders/trader.cpp
   src/exchange/order_book.cpp
+  src/exchange/matching_engine.cpp
 )
 target_include_directories(quanta_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_compile_options(quanta_core PUBLIC -Wall -Wextra -Wpedantic)
