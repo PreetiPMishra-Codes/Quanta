@@ -17,6 +17,7 @@ endif()
 add_library(quanta_core STATIC
   src/orders/order.cpp
   src/traders/trader.cpp
+  src/exchange/order_book.cpp
 )
 target_include_directories(quanta_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_compile_options(quanta_core PUBLIC -Wall -Wextra -Wpedantic)
@@ -29,5 +30,8 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(googletest)
 
+# --- Demo program (becomes the simulator later) ---
+add_executable(quanta src/main.cpp)
+target_link_libraries(quanta PRIVATE quanta_core)
 enable_testing()
 add_subdirectory(tests)
