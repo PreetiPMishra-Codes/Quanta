@@ -12,13 +12,13 @@ const char* to_string(Outcome o) {
         case Outcome::Expired:        return "EXPIRED";
         case Outcome::Cancelled:      return "CANCELLED";
         case Outcome::CancelRejected: return "CANCEL_REJECTED";
+        case Outcome::Rejected:       return "REJECTED";
     }
     return "UNKNOWN";
 }
 
 namespace {
 
-// Would an incoming order on `incoming_side` accept a resting price?
 bool crosses(Side incoming_side, Price resting_price, std::optional<Price> limit) {
     if (!limit) return true;  // market order accepts any price
     return incoming_side == Side::Buy ? resting_price <= *limit
@@ -29,22 +29,30 @@ bool crosses(Side incoming_side, Price resting_price, std::optional<Price> limit
 
 // ---------- the core loop ----------
 void MatchingEngine::match(TradeOrder& incoming, std::optional<Price> limit,
-                           std::vector<Trade>& out) {
+                           ExecutionResult& result) {
     const Side resting_side = opposite(incoming.side());
 
     while (!incoming.is_filled()) {
-        LimitOrder* resting = book_.front(resting_side);   // best price, oldest first
-        if (resting == nullptr) break;                      // nobody to trade with
-        if (!crosses(incoming.side(), resting->price(), limit)) break;  // price too far
+        LimitOrder* resting = book_.front(resting_side);
+        if (resting == nullptr) break;
+        if (!crosses(incoming.side(), resting->price(), limit)) break;
+
+        // Self-trade prevention: remove our own resting order, then look again.
+        if (policy_ == SelfTradePolicy::CancelResting &&
+            resting->trader_id() == incoming.trader_id()) {
+            book_.cancel(resting->id());   // 'resting' is dangling after this
+            ++result.self_trades_prevented;
+            continue;                      // re-fetch the new best order
+        }
 
         const Quantity qty   = std::min(incoming.remaining(), resting->remaining());
-        const Price    price = resting->price();            // resting order sets the price
+        const Price    price = resting->price();
 
         incoming.fill(qty);
         resting->fill(qty);
 
         const bool buy_is_incoming = (incoming.side() == Side::Buy);
-        out.push_back(Trade{
+        result.trades.push_back(Trade{
             next_trade_id_++,
             buy_is_incoming ? incoming.id()        : resting->id(),
             buy_is_incoming ? resting->id()        : incoming.id(),
@@ -55,7 +63,6 @@ void MatchingEngine::match(TradeOrder& incoming, std::optional<Price> limit,
             incoming.side(),
             now()});
 
-        // A fully filled resting order must leave the book immediately.
         if (resting->is_filled()) {
             book_.cancel(resting->id());
         }
@@ -74,7 +81,7 @@ ExecutionResult MatchingEngine::submit_limit(std::unique_ptr<LimitOrder> order) 
     ExecutionResult result;
     result.order_id = order->id();
 
-    match(*order, order->price(), result.trades);
+    match(*order, order->price(), result);
 
     result.filled    = order->filled();
     result.remaining = order->remaining();
@@ -82,7 +89,7 @@ ExecutionResult MatchingEngine::submit_limit(std::unique_ptr<LimitOrder> order) 
     if (order->is_filled()) {
         result.outcome = Outcome::Filled;
     } else {
-        book_.add(std::move(order));   // leftover waits in the book
+        book_.add(std::move(order));
         result.outcome = Outcome::Resting;
     }
     return result;
@@ -97,7 +104,7 @@ ExecutionResult MatchingEngine::submit_market(MarketOrder& order) {
     ExecutionResult result;
     result.order_id = order.id();
 
-    match(order, std::nullopt, result.trades);
+    match(order, std::nullopt, result);
 
     result.filled    = order.filled();
     result.remaining = order.remaining();

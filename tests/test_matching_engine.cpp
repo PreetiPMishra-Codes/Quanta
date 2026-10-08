@@ -288,3 +288,126 @@ TEST(Matching, RandomFlowNeverLeavesTheBookCrossed) {
     EXPECT_GT(traded, 0u);              // the test really did trade
     EXPECT_EQ(traded, filled_sum);      // no quantity created or lost
 }
+// ---------- Day 5: edge cases ----------
+
+TEST(Matching, SweepWholeBook) {
+    MatchingEngine e;
+    for (int i = 0; i < 100; ++i) {
+        e.submit_limit(lim(static_cast<OrderId>(i + 1), 1, Side::Sell, 10, 10000 + i));
+    }
+    auto r = e.submit_limit(lim(1000, 2, Side::Buy, 1000, 20000));
+    EXPECT_EQ(r.outcome, Outcome::Filled);
+    EXPECT_EQ(r.filled, 1000u);
+    ASSERT_EQ(r.trades.size(), 100u);
+    EXPECT_EQ(r.trades.front().price, 10000);
+    EXPECT_EQ(r.trades.back().price, 10099);
+    EXPECT_TRUE(e.book().empty());
+    EXPECT_EQ(e.book().level_count(Side::Sell), 0u);
+}
+
+TEST(Matching, CancelStormLeavesBookEmpty) {
+    MatchingEngine e;
+    for (OrderId id = 1; id <= 1000; ++id) {
+        const bool buy = (id % 2 == 0);
+        // Bids and asks are far apart, so nothing trades.
+        const Price price = buy ? 9000 + static_cast<Price>(id % 50)
+                                : 11000 + static_cast<Price>(id % 50);
+        e.submit_limit(lim(id, 1, buy ? Side::Buy : Side::Sell, 5, price));
+    }
+    ASSERT_EQ(e.book().order_count(), 1000u);
+
+    for (OrderId id = 1; id <= 1000; ++id) {
+        CancelOrder c(100000 + id, 1, id);
+        EXPECT_EQ(e.cancel(c).outcome, Outcome::Cancelled);
+    }
+    EXPECT_TRUE(e.book().empty());
+    EXPECT_EQ(e.book().level_count(Side::Buy), 0u);
+    EXPECT_EQ(e.book().level_count(Side::Sell), 0u);
+}
+
+TEST(Matching, HugeMarketOrderExpiresCleanly) {
+    MatchingEngine e;
+    e.submit_limit(lim(1, 1, Side::Sell, 10, 10000));
+    MarketOrder m(2, 2, Side::Buy, 4'000'000'000u);
+    auto r = e.submit_market(m);
+    EXPECT_EQ(r.outcome, Outcome::Expired);
+    EXPECT_EQ(r.filled, 10u);
+    EXPECT_EQ(r.remaining, 3'999'999'990u);
+    EXPECT_TRUE(e.book().empty());
+}
+
+TEST(Matching, CancelAfterPartialFillReportsFilledQuantity) {
+    MatchingEngine e;
+    e.submit_limit(lim(1, 1, Side::Sell, 100, 10000));
+    e.submit_limit(lim(2, 2, Side::Buy, 30, 10000));
+    CancelOrder c(3, 1, 1);
+    auto r = e.cancel(c);
+    EXPECT_EQ(r.outcome, Outcome::Cancelled);
+    EXPECT_EQ(r.filled, 30u);
+    EXPECT_EQ(r.remaining, 70u);
+}
+
+// ---------- Day 5: self-trade prevention ----------
+
+TEST(Matching, SelfTradeAllowedByDefault) {
+    MatchingEngine e;
+    e.submit_limit(lim(1, 1, Side::Sell, 10, 10000));
+    auto r = e.submit_limit(lim(2, 1, Side::Buy, 10, 10000));   // same trader
+    ASSERT_EQ(r.trades.size(), 1u);
+    EXPECT_EQ(r.trades[0].buyer, r.trades[0].seller);
+    EXPECT_EQ(r.self_trades_prevented, 0u);
+}
+
+TEST(Matching, SelfTradeCancelRestingPolicy) {
+    MatchingEngine e(SelfTradePolicy::CancelResting);
+    e.submit_limit(lim(1, 1, Side::Sell, 10, 10000));
+    auto r = e.submit_limit(lim(2, 1, Side::Buy, 10, 10000));
+    EXPECT_TRUE(r.trades.empty());
+    EXPECT_EQ(r.self_trades_prevented, 1u);
+    EXPECT_EQ(r.outcome, Outcome::Resting);
+    EXPECT_EQ(e.book().find(1), nullptr);      // our own old order was removed
+    ASSERT_NE(e.book().find(2), nullptr);      // the new order rests
+    EXPECT_FALSE(e.book().best_ask().has_value());
+}
+
+TEST(Matching, SelfTradeSkipsOwnOrderAndTradesWithOthers) {
+    MatchingEngine e(SelfTradePolicy::CancelResting);
+    e.submit_limit(lim(1, 1, Side::Sell, 10, 10000));   // trader 1 (oldest)
+    e.submit_limit(lim(2, 2, Side::Sell, 10, 10000));   // trader 2
+    auto r = e.submit_limit(lim(3, 1, Side::Buy, 10, 10000));
+    EXPECT_EQ(r.self_trades_prevented, 1u);
+    ASSERT_EQ(r.trades.size(), 1u);
+    EXPECT_EQ(r.trades[0].sell_order_id, 2u);
+    EXPECT_EQ(r.outcome, Outcome::Filled);
+    EXPECT_TRUE(e.book().empty());
+}
+
+TEST(Matching, SelfTradePolicyRandomFlowStaysUncrossed) {
+    std::mt19937 rng(777);
+    std::uniform_int_distribution<int> side_d(0, 1);
+    std::uniform_int_distribution<int> price_d(9990, 10010);
+    std::uniform_int_distribution<int> qty_d(1, 50);
+
+    MatchingEngine e(SelfTradePolicy::CancelResting);
+    std::uint64_t traded = 0, filled_sum = 0, prevented = 0;
+
+    for (OrderId id = 1; id <= 5000; ++id) {
+        const Side side = side_d(rng) == 0 ? Side::Buy : Side::Sell;
+        // Only 3 traders, so self-trades are frequent.
+        auto r = e.submit_limit(lim(id, static_cast<TraderId>(id % 3 + 1), side,
+                                    static_cast<Quantity>(qty_d(rng)),
+                                    static_cast<Price>(price_d(rng))));
+        filled_sum += r.filled;
+        prevented  += r.self_trades_prevented;
+        for (const auto& t : r.trades) {
+            traded += t.quantity;
+            ASSERT_NE(t.buyer, t.seller) << "self-trade slipped through";
+        }
+        const auto bid = e.book().best_bid();
+        const auto ask = e.book().best_ask();
+        if (bid && ask) ASSERT_LT(*bid, *ask) << "book crossed after order " << id;
+    }
+    EXPECT_GT(traded, 0u);
+    EXPECT_GT(prevented, 0u);        // the test really exercised the policy
+    EXPECT_EQ(traded, filled_sum);
+}
