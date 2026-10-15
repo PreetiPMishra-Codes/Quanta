@@ -2,3 +2,6 @@ build/
 .cache/
 *.o
 *.out
+build-strict/
+build-asan/
+warnings.txt

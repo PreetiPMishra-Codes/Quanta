@@ -405,7 +405,7 @@ TEST(Matching, SelfTradePolicyRandomFlowStaysUncrossed) {
         }
         const auto bid = e.book().best_bid();
         const auto ask = e.book().best_ask();
-        if (bid && ask) ASSERT_LT(*bid, *ask) << "book crossed after order " << id;
+        if (bid && ask){ ASSERT_LT(*bid, *ask) << "book crossed after order " << id;}
     }
     EXPECT_GT(traded, 0u);
     EXPECT_GT(prevented, 0u);        // the test really exercised the policy

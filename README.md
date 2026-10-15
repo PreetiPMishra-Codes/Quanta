@@ -2,18 +2,12 @@
 
 ### Low-Latency Stock Exchange & Market Infrastructure Simulator
 
-<p align="center">
+**A modern C++17 simulation of the infrastructure behind financial markets.**
 
-**A modern C++ simulation of the infrastructure behind financial markets.**
-
-<br>
-
-[![C++](https://img.shields.io/badge/C%2B%2B-17%2B-00599C?style=for-the-badge\&logo=cplusplus\&logoColor=white)](#)
+[![C++](https://img.shields.io/badge/C%2B%2B-17-00599C?style=for-the-badge&logo=cplusplus&logoColor=white)](#)
 [![OOP](https://img.shields.io/badge/OOP-Coursework-6A5ACD?style=for-the-badge)](#)
-[![Systems](https://img.shields.io/badge/Systems-Engineering-2E8B57?style=for-the-badge)](#)
-[![Performance](https://img.shields.io/badge/Performance-Low%20Latency-FF8C00?style=for-the-badge)](#)
-
-</p>
+[![Tests](https://img.shields.io/badge/Tests-111%20passing-2E8B57?style=for-the-badge)](#)
+[![Sanitizers](https://img.shields.io/badge/ASan%20%2B%20UBSan-clean-FF8C00?style=for-the-badge)](#)
 
 ---
 
@@ -25,736 +19,328 @@
 | **Student ID**   | ID-B125085                                             |
 | **Name**         | **Preeti Pragyan Mishra**                              |
 | **Course**       | Object-Oriented Programming                            |
-| **Language**     | Modern C++                                             |
+| **Language**     | Modern C++ (C++17)                                     |
 | **Project Type** | Systems Engineering / Market Infrastructure Simulation |
 
 ---
 
-# 🚀 What is QUANTA?
+## 🚀 What is QUANTA?
 
-**QUANTA** is a simplified **stock exchange and market infrastructure simulator** built in modern C++.
+QUANTA is a simplified **stock exchange and market infrastructure simulator**. It is not a stock-management, portfolio or CRUD application. It focuses on the **infrastructure underneath financial markets**.
 
-Instead of building a conventional stock-management, portfolio-management, or CRUD application, QUANTA focuses on the **infrastructure underneath financial markets**.
-
-The central question is:
-
-> **How can a financial exchange process a huge number of orders and market-data events with extremely low latency while remaining correct, concurrent, scalable, and fault tolerant?**
-
-The simulator models the major components of an exchange:
+> **How can a financial exchange process a huge number of orders and market-data events with extremely low latency while remaining correct, concurrent, scalable and fault tolerant?**
 
 ```text
-                 ┌─────────────────────┐
-                 │   Simulated Traders  │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-                    ┌───────────────┐
-                    │     Orders    │
-                    └───────┬───────┘
-                            │
-                            ▼
-                 ┌─────────────────────┐
-                 │    Risk Checks      │
-                 └──────────┬──────────┘
-                            │
-                            ▼
-              ┌──────────────────────────┐
-              │       ORDER BOOK         │
-              │                          │
-              │  BUY             SELL   │
-              │  ───             ────   │
-              │ ₹100.10          ₹100.15│
-              │ ₹100.05          ₹100.20│
-              │ ₹100.00          ₹100.25│
-              └────────────┬─────────────┘
-                           │
-                           ▼
-                 ┌──────────────────┐
-                 │ Matching Engine  │
-                 └────────┬─────────┘
-                          │
-                          ▼
-                   ┌─────────────┐
-                   │   Trades    │
-                   └──────┬──────┘
-                          │
-                          ▼
-              ┌─────────────────────────┐
-              │    Market Data Feed     │
-              └────────────┬────────────┘
-                           │
-                ┌──────────┼──────────┐
-                ▼          ▼          ▼
-             Traders      Risk     Analytics
+ Simulated Traders  (strategies decide)
+         |
+         v
+       Orders  (Market / Limit / Cancel)
+         |
+         v
+   Risk Checks  --- rejected ---> reason code returned to trader
+         |
+         v
+   Order Book  (price/time priority)
+         |
+         v
+  Matching Engine
+         |
+         v
+      Trades  --->  Settlement (cash and positions)  --->  Market Data (planned)
 ```
 
----
-
-# 🎯 Project Goals
-
-QUANTA is designed to explore:
-
-* 🧩 Object-Oriented Programming
-* ⚡ Low-latency system design
-* 🚀 High-throughput processing
-* 🧵 Concurrency
-* 🧠 Efficient data structures
-* 💾 Memory efficiency
-* 📊 Performance engineering
-* 📡 Event-driven architecture
-* 📈 Scalability
-* 🛡️ Fault tolerance
-
-The goal is **not** to build a profitable trading bot.
-
-The goal is to understand **how the infrastructure that processes trades can be designed and optimized**.
+The goal is **not** a profitable trading bot. The goal is to understand how the infrastructure that processes trades can be designed, measured and optimized.
 
 ---
 
-# 🏗️ Core Architecture
+## 📌 Current Status (Week 1 complete)
 
-QUANTA is divided into several logical components:
+Phases 1 to 4 are **built and tested**. Phases 5 to 10 are planned.
 
-```text
-                         QUANTA
-                            │
-          ┌─────────────────┼─────────────────┐
-          │                 │                 │
-          ▼                 ▼                 ▼
-     DOMAIN LAYER       EXCHANGE LAYER    SIMULATION
-          │                 │                 │
-          │                 │                 │
-      ┌───┴───┐       ┌─────┴──────┐      ┌───┴────────┐
-      │       │       │            │      │            │
-    Order   Trader  Order Book  Matching  Strategies  Workload
-      │       │       │            │      │            │
-      └───┬───┘       └─────┬──────┘      └────────────┘
-          │                 │
-          │                 ▼
-          │          Trade Execution
-          │                 │
-          │                 ▼
-          │          Market Data
-          │                 │
-          └─────────────────┼────────────────┐
-                            ▼                ▼
-                       Benchmarking       Monitoring
+| Phase | Topic | Status |
+|---|---|---|
+| 1 | Basic OOP architecture | ✅ Built and tested |
+| 2 | Order book | ✅ Built and tested |
+| 3 | Matching engine | ✅ Built and tested |
+| 4 | Trading strategies and workload simulator | ✅ Built and tested |
+| 5 | Benchmarking | ⏳ Planned |
+| 6 | Concurrent processing | ⏳ Planned |
+| 7 | Market data pipeline | ⏳ Planned |
+| 8 | Performance optimization | ⏳ Planned |
+| 9 | Scaling experiments | ⏳ Planned |
+| 10 | Failure simulation | ⏳ Planned |
+
+### Verification
+
+- **111 automated tests** (GoogleTest), including property tests with fixed seeds.
+- Clean under **AddressSanitizer** and **UndefinedBehaviorSanitizer**.
+- Clean build with `-Wall -Wextra -Wpedantic -Wshadow -Wconversion` (0 warnings).
+- **Conservation checks** after simulated runs, including a 1,000,000-event run:
+  net position is 0 and total cash is unchanged.
+- The same seed produces an identical run.
+- The order book is never left crossed (best bid is always below best ask).
+
+### Build and run
+
+```bash
+sudo apt install -y build-essential cmake git
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j2
+ctest --test-dir build --output-on-failure
+./build/quanta 50000 42      # arguments: number of events, random seed
 ```
 
+Use `Debug` while developing and `Release` for any timing measurement.
+
+### Observed simulation behaviour
+
+Seed 42, 50 traders, 1,000,000 events (measured on the development machine):
+
+| Observation | Result |
+|---|---|
+| Orders rejected by risk checks | 29,519 (about 4.8% of orders) |
+| Rejection reasons | 28,733 position limit, 786 insufficient funds |
+| Trades executed | 375,714 (4,896,633 shares) |
+| Self-trades | 0 occurred, 3,972 prevented |
+| Cancel requests that succeeded | 151,412 of 299,759 (the rest targeted orders that had already filled) |
+| Shares conserved / cash conserved | yes / yes |
+
+Short runs (20,000 events) produce no risk rejections, so the risk checks are verified by unit tests there and by the long run above.
+
+### Design decisions
+
+- **Prices are integer ticks** (1 tick = 1 paisa), never `double`, so matching comparisons are exact.
+- **The order book stores, the matching engine decides.** Each can change independently.
+- **Trades execute at the resting order's price**, so the newcomer gets price improvement.
+- **Rejections are result values.** Exceptions are reserved for programmer errors.
+- **Self-trades are prevented** by cancelling the trader's own resting order, which keeps the book uncrossed.
+- **The `Exchange` composes** a risk manager, a matching engine and traders instead of inheriting from them.
+- **Strategies see a read-only `MarketView`** and return `Action` data. They cannot touch the exchange directly.
+
+### Known limitations
+
+- The funds check ignores cash already promised to resting orders.
+- Strategies only observe the market on their own turn.
+- Market-maker quotes are never cancelled by the maker, so stale quotes pile up (visible in the final book of long runs).
+- Random results are reproducible only with the same compiler and standard library.
+- No benchmark has been measured yet.
+
+### Benchmarks
+
+**Not yet measured.** Performance figures will be added only from real runs in Release mode. No value will be fabricated.
+
 ---
 
-# 🧱 Major Components
+## 🎯 Project Goals
 
-### 👤 Traders
+QUANTA explores:
 
-Simulated participants that generate orders.
+- 🧩 Object-Oriented Programming
+- ⚡ Low-latency system design
+- 🚀 High-throughput processing
+- 🧵 Concurrency
+- 🧠 Efficient data structures
+- 💾 Memory efficiency
+- 📊 Performance engineering
+- 📡 Event-driven architecture
+- 📈 Scalability
+- 🛡️ Fault tolerance
 
-Possible trader types:
+---
+
+## 🏗️ Architecture
+
+| Layer | Contents |
+|---|---|
+| **Simulation** | `Simulator`, `TradingStrategy` (Random, Momentum, MeanReversion, MarketMaking) |
+| **Exchange** | `Exchange` (composes `RiskManager`, `MatchingEngine`, traders) |
+| **Core engine** | `MatchingEngine`, `OrderBook`, `Trade` |
+| **Domain** | `Order` hierarchy, `Trader` hierarchy, core types (`Price`, `Quantity`, `Side`) |
+
+### Class hierarchies
 
 ```text
+Order                     (id, trader, timestamp)
+|-- TradeOrder            (side, quantity, remaining)
+|   |-- MarketOrder       (trade now at the best available price)
+|   `-- LimitOrder        (trade only at this price or better)
+`-- CancelOrder           (target order id)
+
 Trader
-├── RetailTrader
-├── InstitutionalTrader
-└── AlgorithmicTrader
-```
+|-- RetailTrader
+|-- InstitutionalTrader
+`-- AlgorithmicTrader
 
----
-
-### 📋 Orders
-
-Orders represent trading instructions submitted to the exchange.
-
-```text
-Order
-├── MarketOrder
-├── LimitOrder
-└── CancelOrder
-```
-
-The design allows new order types to be introduced without rewriting the entire matching engine.
-
----
-
-### 📖 Order Book
-
-The order book maintains:
-
-* Bid prices
-* Ask prices
-* Orders at each price level
-* Order insertion
-* Order cancellation
-* Order matching
-
-The system follows appropriate **price/time priority** rules.
-
----
-
-### ⚙️ Matching Engine
-
-The matching engine is the heart of QUANTA.
-
-Its responsibility is to:
-
-```text
-Receive Order
-      │
-      ▼
-Validate
-      │
-      ▼
-Risk Check
-      │
-      ▼
-Insert into Order Book
-      │
-      ▼
-Find Compatible Orders
-      │
-      ▼
-Match
-      │
-      ▼
-Generate Trade
-      │
-      ▼
-Publish Market Event
-```
-
----
-
-# 🧠 OOP Design
-
-Since QUANTA is an **Object-Oriented Programming coursework project**, OOP is an important part of the architecture.
-
-The project demonstrates:
-
-| OOP / C++ Concept    | Application in QUANTA                                 |
-| -------------------- | ----------------------------------------------------- |
-| **Encapsulation**    | Protecting order-book and exchange state              |
-| **Abstraction**      | Interfaces for strategies and exchange components     |
-| **Inheritance**      | Different order/trader/strategy types                 |
-| **Polymorphism**     | Runtime selection of strategies/order behavior        |
-| **Composition**      | Exchange composed of books, engine, risk system, etc. |
-| **SOLID Principles** | Modular and extensible architecture                   |
-| **Design Patterns**  | Applied where they solve real design problems         |
-| **RAII**             | Safe resource and lifetime management                 |
-| **Smart Pointers**   | Controlled dynamic ownership                          |
-| **STL**              | Efficient containers and algorithms                   |
-| **Templates**        | Used where genuinely beneficial                       |
-
-> **Design principle:** inheritance will not be forced merely to demonstrate OOP. Composition and modern C++ techniques will be preferred where they produce a better architecture.
-
----
-
-# 📊 Data Structures & Performance
-
-One of the key learning objectives is understanding **why certain data structures perform better under latency-sensitive workloads**.
-
-Potential structures include:
-
-```text
-std::map
-std::unordered_map
-priority queues
-custom price-level structures
-custom order containers
-```
-
-Rather than simply choosing one structure, QUANTA will allow different approaches to be benchmarked.
-
-### Example Question
-
-> Why might a particular order-book representation outperform another under a high-frequency synthetic workload?
-
-The answer should come from **measurement and architectural reasoning**, not assumptions.
-
----
-
-# ⚡ Low-Latency Pipeline
-
-Latency is one of the primary goals of QUANTA.
-
-The simulator measures the processing pipeline:
-
-```text
-┌───────────────┐
-│ Order Received│
-└───────┬───────┘
-        ▼
-┌───────────────┐
-│   Validation  │
-└───────┬───────┘
-        ▼
-┌───────────────┐
-│   Risk Check  │
-└───────┬───────┘
-        ▼
-┌───────────────┐
-│ Order Insertion│
-└───────┬───────┘
-        ▼
-┌───────────────┐
-│    Matching   │
-└───────┬───────┘
-        ▼
-┌───────────────┐
-│ Trade Creation│
-└───────┬───────┘
-        ▼
-┌───────────────┐
-│ Market Data   │
-└───────────────┘
-```
-
-### Metrics
-
-QUANTA will measure:
-
-* **Average latency**
-* **P50**
-* **P95**
-* **P99**
-* **P99.9**
-* **Maximum latency**
-* **Throughput**
-
-Tail latency is particularly important because average latency alone can hide occasional but significant slowdowns.
-
----
-
-# 🧵 Concurrency
-
-QUANTA simulates multiple traders submitting orders concurrently.
-
-Modern C++ concurrency facilities can be explored, including:
-
-```cpp
-std::thread
-std::mutex
-std::shared_mutex
-std::atomic
-std::condition_variable
-```
-
-and thread-pool architectures.
-
-The project investigates:
-
-```text
-Race Conditions
-       │
-       ▼
-Data Races
-       │
-       ▼
-Lock Contention
-       │
-       ▼
-Deadlocks
-       │
-       ▼
-Thread Coordination
-       │
-       ▼
-Latency vs Throughput
-```
-
-A key experiment is comparing different architectures.
-
-### Architecture A — Shared State
-
-```text
-Thread ──┐
-Thread ──┼──► Shared Order Book
-Thread ──┤          │
-Thread ──┘          ▼
-                 Heavy Locks
-```
-
-### Architecture B — Controlled Critical Path
-
-```text
-Multiple Producers
-        │
-        ▼
-     Queue
-        │
-        ▼
-Serialized Matching Path
-        │
-        ▼
-   Order Book
-        │
-        ▼
-Parallel Consumers
-```
-
-The objective is to determine experimentally when each architecture makes sense.
-
----
-
-# 📡 Market Data Pipeline
-
-After trades are executed, QUANTA generates market-data events.
-
-```text
-                 Trade Executed
-                       │
-                       ▼
-                Market Data Event
-                       │
-             ┌─────────┼─────────┐
-             ▼         ▼         ▼
-          Traders     Risk    Analytics
-```
-
-The system explores:
-
-* Producer/consumer architecture
-* Queues
-* Backpressure
-* Batching
-* Event processing
-* Event prioritization
-
----
-
-# 📈 Scalability Experiments
-
-The workload generator can simulate increasing order rates:
-
-```text
-1,000 orders/sec
-        ↓
-10,000 orders/sec
-        ↓
-100,000 orders/sec
-        ↓
-1,000,000 orders/sec
-```
-
-These are **synthetic workloads**, not claims of real-world exchange performance.
-
-Actual performance depends on the hardware and implementation.
-
-Measurements include:
-
-| Metric                  | Purpose               |
-| ----------------------- | --------------------- |
-| Orders/sec              | Processing throughput |
-| Trades/sec              | Matching throughput   |
-| Latency                 | Processing delay      |
-| Queue depth             | Backlog               |
-| CPU usage               | Compute utilization   |
-| Memory usage            | Resource consumption  |
-| Contention              | Concurrency overhead  |
-| Performance degradation | Scalability behavior  |
-
----
-
-# 🤖 Trading Strategies
-
-Trading strategies are used primarily to create varied and realistic order flow.
-
-```text
 TradingStrategy
-├── RandomStrategy
-├── MomentumStrategy
-├── MeanReversionStrategy
-└── MarketMakingStrategy
+|-- RandomStrategy
+|-- MomentumStrategy
+|-- MeanReversionStrategy
+`-- MarketMakingStrategy
 ```
 
-They demonstrate **runtime polymorphism** while acting as simulated participants in the exchange.
-
-> The objective is **not** to create a profitable trading algorithm.
+`CancelOrder` is deliberately separate from `TradeOrder`: a cancel has no side, quantity or price, so inheritance models "is a kind of", not just a shared name.
 
 ---
 
-# 🛡️ Risk Management
-
-QUANTA includes simple exchange-level risk checks:
-
-* Insufficient funds
-* Position limits
-* Maximum order size
-* Trading limits
-
-Risk management remains intentionally lightweight so the project stays focused on **market infrastructure rather than portfolio analytics**.
-
----
-
-# 💥 Failure Simulation
-
-The system will eventually simulate controlled failures such as:
+## 📖 Order Book and Matching
 
 ```text
-Matching Engine Failure
-Market Data Consumer Failure
-Queue Overload
-Slow Consumer
-Network Delay
-Temporary Service Failure
+   SELLERS (asks), lowest price is best
+     100.25  x 300
+     100.20  x 150
+     100.15  x 200   <- best ask
+   ------ spread = 0.05 ------
+     100.10  x 120   <- best bid
+     100.05  x 500
+     100.00  x 100
+   BUYERS (bids), highest price is best
 ```
 
-The project investigates:
+| Rule | Meaning |
+|---|---|
+| Price priority | The best price trades first |
+| Time priority | At equal prices, the earliest order goes first |
+| Resting price rule | The order already waiting sets the trade price |
+| Market orders | Take what is available. Any leftover is discarded |
+| Limit orders | Unfilled quantity rests in the book |
+| Cancel | Only the owner of an order may cancel it |
 
-* Retries
-* Recovery
-* Backpressure
-* Fault isolation
-* Failover
-* Data consistency
+**Data structures:** `std::map` for sorted price levels (`std::greater` for bids), `std::list` per level for stable iterators, and `std::unordered_map` as a cancel index so cancellation finds an order directly instead of scanning the book.
 
 ---
 
-# 📊 Benchmarking
+## 🧠 OOP Design
 
-Performance numbers will be generated from actual experiments.
+| OOP / C++ Concept | Application in QUANTA |
+|---|---|
+| **Encapsulation** | Order book internals and trader accounts are private |
+| **Abstraction** | `Order` and `TradingStrategy` are abstract interfaces |
+| **Inheritance** | `TradeOrder` is the parent of `MarketOrder` and `LimitOrder` |
+| **Polymorphism** | One loop calls `strategy->decide()`. `process()` routes any order type |
+| **Composition** | `Exchange` has a `RiskManager`, `MatchingEngine` and traders |
+| **RAII / Smart pointers** | `unique_ptr` gives each order one clear owner |
+| **STL** | `map`, `list`, `unordered_map`, `vector`, `optional` |
+| **Testing** | Unit tests, property tests and conservation tests |
 
-Example dashboard:
-
-```text
-╔══════════════════════════════════════════╗
-║              QUANTA BENCHMARK            ║
-╠══════════════════════════════════════════╣
-║ Orders/sec              [MEASURED]       ║
-║ Trades/sec              [MEASURED]       ║
-║ P50 latency             [MEASURED]       ║
-║ P95 latency             [MEASURED]       ║
-║ P99 latency             [MEASURED]       ║
-║ P99.9 latency           [MEASURED]       ║
-║ Maximum latency         [MEASURED]       ║
-║ Queue depth             [MEASURED]       ║
-║ CPU utilization         [MEASURED]       ║
-║ Memory usage            [MEASURED]       ║
-╚══════════════════════════════════════════╝
-```
-
-**No benchmark values will be fabricated.**
-
-Every optimization should follow:
-
-```text
-1. Establish baseline
-        ↓
-2. Identify bottleneck
-        ↓
-3. Change one thing
-        ↓
-4. Benchmark again
-        ↓
-5. Compare results
-        ↓
-6. Explain the trade-off
-```
+> Inheritance is not forced to demonstrate OOP. Composition is preferred wherever it gives a better design.
 
 ---
 
-# 🗺️ Development Roadmap
+## 🛡️ Risk Management
 
-```text
-Phase 1  ──► Basic OOP Architecture
-                  │
-Phase 2  ──► Order Book
-                  │
-Phase 3  ──► Matching Engine
-                  │
-Phase 4  ──► Trading Strategies
-                  │
-Phase 5  ──► Benchmarking
-                  │
-Phase 6  ──► Concurrent Processing
-                  │
-Phase 7  ──► Market Data Pipeline
-                  │
-Phase 8  ──► Performance Optimization
-                  │
-Phase 9  ──► Scaling Experiments
-                  │
-Phase 10 ──► Failure Simulation
-```
+Lightweight checks that run before an order reaches the book:
 
-Each phase should keep the previous version functional.
+- Maximum order size (per trader type)
+- Position limit (long or short)
+- Sufficient funds (buys only, using an overflow-safe comparison)
+
+Cancels are not risk-checked, because they only reduce exposure.
 
 ---
 
-# 🛠️ Technology Stack
+## ⚡ Planned Work
 
-### Core
+### Low-latency measurement (Phase 5)
 
-* **C++ / Modern C++**
-* **STL**
-* Object-Oriented Design
-* Multithreading
-* Concurrency primitives
-* RAII
-* Smart pointers
-* Templates
+Average, P50, P95, P99, P99.9 and maximum latency, plus throughput, measured per pipeline stage (validate, risk, insert, match, trade). Tail latency matters because averages can hide occasional large delays.
 
-### Systems Concepts
+### Concurrency (Phase 6)
 
-* Order-book architecture
-* Matching engines
-* Event-driven systems
-* Producer/consumer pipelines
-* Queues
-* Backpressure
-* Concurrency
-* Memory management
-* Cache locality
-* Performance profiling
-* Benchmarking
-* Fault tolerance
+Two architectures will be compared experimentally:
 
-### Development Philosophy
+```text
+A: Shared state                    B: Controlled critical path
+
+ Thread --+                         Producers
+ Thread --+--> shared book + locks     |
+ Thread --+                            v
+                                     Queue --> single matching thread --> book
+```
+
+### Market data pipeline (Phase 7)
+
+Trade events published through a bounded queue to subscribers, with backpressure.
+
+### Optimization and scaling (Phases 8 and 9)
+
+Order-book representations compared by measurement, followed by synthetic load sweeps (1k to 1M orders/sec). These are synthetic workloads, not claims of real exchange performance.
+
+### Failure simulation (Phase 10)
+
+Slow consumers, queue overload and temporary failures, studying retries, recovery and backpressure.
+
+### Optimization method
+
+```text
+1. Establish baseline  ->  2. Identify bottleneck  ->  3. Change one thing
+4. Benchmark again     ->  5. Compare results     ->  6. Explain the trade-off
+```
 
 > **Measure first. Optimize second.**
 
-The project prioritizes correctness, measurable performance, architectural reasoning, and learning over simply adding more features.
+---
+
+## 🛠️ Technology Stack
+
+C++17, STL, CMake, GoogleTest, Git, AddressSanitizer, UndefinedBehaviorSanitizer. Planned: `std::thread`, `std::mutex`, `std::atomic`, `std::condition_variable`.
 
 ---
 
-# 📁 Planned Project Structure
+## 📁 Project Structure
 
 ```text
 QUANTA/
-│
-├── include/
-│   ├── core/
-│   ├── exchange/
-│   ├── orders/
-│   ├── traders/
-│   ├── strategies/
-│   ├── risk/
-│   ├── market_data/
-│   └── benchmark/
-│
-├── src/
-│   ├── core/
-│   ├── exchange/
-│   ├── orders/
-│   ├── traders/
-│   ├── strategies/
-│   ├── risk/
-│   ├── market_data/
-│   └── benchmark/
-│
-├── tests/
-│
-├── benchmarks/
-│
-├── docs/
-│
-├── CMakeLists.txt
-│
-└── README.md
-```
-
-*The structure can evolve as the architecture develops.*
-
----
-
-# 🔬 What Makes QUANTA Different?
-
-QUANTA deliberately avoids becoming:
-
-❌ A generic stock-management system
-❌ A portfolio-management system
-❌ A stock-price prediction system
-❌ A machine-learning project
-❌ A CRUD application
-❌ A database-management application
-❌ A fake HFT system making unrealistic performance claims
-
-Instead, it focuses on:
-
-```text
-              ┌────────────────────┐
-              │       QUANTA       │
-              └─────────┬──────────┘
-                        │
-       ┌────────────────┼────────────────┐
-       ▼                ▼                ▼
-      OOP             C++         Market Infrastructure
-       │                │                │
-       └────────────────┼────────────────┘
-                        │
-          ┌─────────────┼─────────────┐
-          ▼             ▼             ▼
-      Low Latency   Concurrency   High Throughput
-          │             │             │
-          └─────────────┼─────────────┘
-                        ▼
-                 Performance
-                        │
-                        ▼
-                   Scalability
-                        │
-                        ▼
-                 Fault Tolerance
+|-- include/
+|   |-- core/          types.hpp
+|   |-- orders/        order.hpp
+|   |-- traders/       trader.hpp
+|   |-- exchange/      order_book.hpp, matching_engine.hpp, trade.hpp, exchange.hpp
+|   |-- risk/          risk_manager.hpp
+|   |-- strategies/    strategy.hpp, strategies.hpp
+|   |-- simulation/    simulator.hpp
+|   |-- market_data/   (planned)
+|   `-- benchmark/     (planned)
+|-- src/               implementations, plus main.cpp
+|-- tests/             GoogleTest suites
+|-- benchmarks/        (planned)
+|-- docs/
+|-- CMakeLists.txt
+`-- README.md
 ```
 
 ---
 
-# 🎓 Learning Outcomes
+## 🔬 What Makes QUANTA Different?
+
+QUANTA deliberately avoids being a generic stock-management system, a portfolio manager, a price predictor, a machine-learning project, a CRUD application, or a fake HFT system making unrealistic performance claims.
+
+---
+
+## 🎓 Learning Outcomes
 
 By completing QUANTA, the goal is to confidently explain:
 
-> **How does an exchange process enormous numbers of orders?**
-
-> **How does an order book work internally?**
-
-> **Why are some data structures better for latency-sensitive workloads?**
-
-> **Why does memory allocation affect performance?**
-
-> **What is cache locality?**
-
-> **Why can adding threads make a system slower?**
-
-> **How do locks affect latency?**
-
-> **How can an exchange architecture scale?**
-
-> **How do queues and backpressure work?**
-
-> **How is P99 latency measured?**
-
-> **How are system bottlenecks identified?**
-
-> **What happens when a component fails?**
+- How an exchange processes large numbers of orders
+- How an order book works internally
+- Why some data structures suit latency-sensitive workloads
+- Why memory allocation and cache locality affect performance
+- Why adding threads can make a system slower
+- How locks affect latency
+- How queues and backpressure work
+- How P99 latency is measured
+- How bottlenecks are identified
+- What happens when a component fails
 
 ---
 
-# 📌 Project Philosophy
+## 📌 Project Philosophy
 
-QUANTA is not intended to be an unrealistic replica of a production exchange.
-
-It is a **learning-focused systems-engineering simulator** designed to connect OOP concepts with real-world problems in:
-
-**performance • concurrency • market infrastructure • scalability • reliability**
-
-The emphasis is on understanding **why** an architecture works, measuring its behavior, and learning from its limitations.
+QUANTA is not an unrealistic replica of a production exchange. It is a **learning-focused systems-engineering simulator** that connects OOP concepts with real problems in **performance, concurrency, market infrastructure, scalability and reliability**. The emphasis is on understanding **why** an architecture works, measuring its behaviour, and learning from its limitations.
 
 ---
 
 ## 👤 Author
 
-### Preeti Pragyan Mishra
-
-**Student ID:** `ID-B125085`
-
-**Course:** Object-Oriented Programming
-
-**Project:** `QUANTA — Low-Latency Stock Exchange & Market Infrastructure Simulator`
-
----
-
-<p align="center">
-
-### ⚡ QUANTA
+**Preeti Pragyan Mishra**  |  Student ID: `ID-B125085`  |  Course: Object-Oriented Programming
 
 **Simulate the market. Measure the system. Understand the infrastructure.**
-
-</p>
