@@ -54,6 +54,11 @@ public:
     void set_latency_recorder(LatencyRecorder* recorder) noexcept {
         recorder_ = recorder;
     }
+        // Like the recorder above, but each sample also remembers the kind of order,
+    // the book size, and whether the cancel index rehashed during the submit.
+    void set_detail_recorder(DetailedRecorder* recorder) noexcept {
+        detail_ = recorder;
+    }
     // Conservation checks (see tests).
     std::int64_t net_position() const;
     Price        total_cash() const;
@@ -82,6 +87,7 @@ private:
     Price            initial_total_cash_ = 0;
     SimulationStats  stats_;
     LatencyRecorder* recorder_ = nullptr;   // not owned
+    DetailedRecorder* detail_ = nullptr;    // not owned
 };
 
 }  // namespace quanta

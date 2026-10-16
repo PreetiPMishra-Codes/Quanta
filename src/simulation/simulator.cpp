@@ -125,14 +125,49 @@ void Simulator::cancel_random() {
     }
     record(result);
 }
+namespace {
+
+// Decide what kind of work a finished submit() did.
+Category classify(OrderType type, const ExchangeResult& r) {
+    if (r.execution.outcome == Outcome::Rejected) return Category::Rejected;
+    switch (type) {
+        case OrderType::Cancel:
+            return r.execution.outcome == Outcome::Cancelled ? Category::CancelOk
+                                                             : Category::CancelFailed;
+        case OrderType::Market:
+            return Category::Market;
+        case OrderType::Limit:
+            return r.execution.trades.empty() ? Category::LimitRested
+                                              : Category::LimitTraded;
+    }
+    return Category::LimitRested;
+}
+
+}  // namespace
+
 ExchangeResult Simulator::timed_submit(std::unique_ptr<Order> order) {
-    if (recorder_ == nullptr) {
+    if (recorder_ == nullptr && detail_ == nullptr) {
         return exchange_.submit(std::move(order));
     }
+
+    // Everything read BEFORE the first timestamp is not part of the measurement.
+    const OrderBook& book = exchange_.engine().book();
+    const OrderType type = order->type();
+    const std::size_t book_before    = book.order_count();
+    const std::size_t buckets_before = book.index_bucket_count();
+
     const Timestamp start = now();
     ExchangeResult result = exchange_.submit(std::move(order));
     const Timestamp end = now();
-    recorder_->record(end - start);
+
+    if (recorder_ != nullptr) {
+        recorder_->record(end - start);
+    }
+    if (detail_ != nullptr) {
+        detail_->record(end - start, classify(type, result),
+                        static_cast<std::uint32_t>(book_before),
+                        book.index_bucket_count() != buckets_before);
+    }
     return result;
 }
 

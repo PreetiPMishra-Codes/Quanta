@@ -38,9 +38,11 @@ FetchContent_MakeAvailable(googletest)
 
 # --- Demo program (becomes the simulator later) ---
 add_executable(quanta src/main.cpp)
-# --- Benchmarks: build these from a Release configuration ---
+# Benchmarks: build these from a Release configuration
 add_executable(bench_baseline benchmarks/bench_baseline.cpp)
 target_link_libraries(bench_baseline PRIVATE quanta_core)
+add_executable(bench_profile benchmarks/bench_profile.cpp)
+target_link_libraries(bench_profile PRIVATE quanta_core)
 target_link_libraries(quanta PRIVATE quanta_core)
 enable_testing()
 add_subdirectory(tests)

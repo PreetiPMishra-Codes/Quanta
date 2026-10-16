@@ -51,8 +51,9 @@ public:
 
     std::size_t order_count() const noexcept { return index_.size(); }
     std::size_t level_count(Side side) const noexcept;
-    bool        empty() const noexcept { return index_.empty(); }
-
+    bool empty() const noexcept { return index_.empty(); }
+        // Size of the cancel index's hash table. Used by the Day 9 rehash test.
+    std::size_t index_bucket_count() const noexcept { return index_.bucket_count(); }
     // Printable ladder like the diagram above.
     std::string render(std::size_t levels = 5) const;
 
