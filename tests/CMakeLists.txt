@@ -8,6 +8,7 @@ add_executable(quanta_tests
   test_exchange.cpp
   test_strategies.cpp
   test_simulator.cpp
+  test_latency.cpp
 )
 target_link_libraries(quanta_tests PRIVATE quanta_core GTest::gtest_main)
 

@@ -23,6 +23,7 @@ add_library(quanta_core STATIC
   src/risk/risk_manager.cpp
   src/strategies/strategies.cpp
   src/simulation/simulator.cpp
+  src/benchmark/latency_recorder.cpp
 )
 target_include_directories(quanta_core PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_compile_options(quanta_core PUBLIC -Wall -Wextra -Wpedantic)
@@ -37,6 +38,9 @@ FetchContent_MakeAvailable(googletest)
 
 # --- Demo program (becomes the simulator later) ---
 add_executable(quanta src/main.cpp)
+# --- Benchmarks: build these from a Release configuration ---
+add_executable(bench_baseline benchmarks/bench_baseline.cpp)
+target_link_libraries(bench_baseline PRIVATE quanta_core)
 target_link_libraries(quanta PRIVATE quanta_core)
 enable_testing()
 add_subdirectory(tests)

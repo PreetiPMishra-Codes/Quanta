@@ -102,7 +102,7 @@ void Simulator::send(TraderId trader, const Action& a) {
         ++stats_.limit_orders;
     }
 
-    const ExchangeResult result = exchange_.submit(std::move(order));
+        const ExchangeResult result = timed_submit(std::move(order));
     if (result.execution.outcome == Outcome::Resting) {
         live_.push_back(LiveOrder{id, trader});
     }
@@ -118,12 +118,22 @@ void Simulator::cancel_random() {
     live_.pop_back();
 
     ++stats_.cancels_sent;
-    const ExchangeResult result = exchange_.submit(
+    const ExchangeResult result = timed_submit(
         std::make_unique<CancelOrder>(next_order_id_++, target.trader, target.id));
     if (result.execution.outcome == Outcome::Cancelled) {
         ++stats_.cancels_ok;          // otherwise it was already filled
     }
     record(result);
+}
+ExchangeResult Simulator::timed_submit(std::unique_ptr<Order> order) {
+    if (recorder_ == nullptr) {
+        return exchange_.submit(std::move(order));
+    }
+    const Timestamp start = now();
+    ExchangeResult result = exchange_.submit(std::move(order));
+    const Timestamp end = now();
+    recorder_->record(end - start);
+    return result;
 }
 
 void Simulator::record(const ExchangeResult& r) {

@@ -5,3 +5,4 @@ build/
 build-strict/
 build-asan/
 warnings.txt
+build-release/

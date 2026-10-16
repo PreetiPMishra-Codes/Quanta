@@ -9,6 +9,7 @@
 
 #include "core/types.hpp"
 #include "exchange/exchange.hpp"
+#include "benchmark/latency_recorder.hpp"
 #include "strategies/strategy.hpp"
 
 namespace quanta {
@@ -48,7 +49,11 @@ public:
     const SimulationStats& stats() const noexcept { return stats_; }
     const Exchange& exchange() const noexcept { return exchange_; }
     Price last_price() const noexcept { return last_price_; }
-
+    // Optional: when set, the time spent inside Exchange::submit is recorded
+    // for every order. The simulator does not own the recorder.
+    void set_latency_recorder(LatencyRecorder* recorder) noexcept {
+        recorder_ = recorder;
+    }
     // Conservation checks (see tests).
     std::int64_t net_position() const;
     Price        total_cash() const;
@@ -64,6 +69,7 @@ private:
     void send(TraderId trader, const Action& action);
     void cancel_random();
     void record(const ExchangeResult& result);
+    ExchangeResult timed_submit(std::unique_ptr<Order> order);
 
     SimulationConfig cfg_;
     std::mt19937     rng_;
@@ -75,6 +81,7 @@ private:
     Price            last_price_;
     Price            initial_total_cash_ = 0;
     SimulationStats  stats_;
+    LatencyRecorder* recorder_ = nullptr;   // not owned
 };
 
 }  // namespace quanta
