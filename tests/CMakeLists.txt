@@ -10,6 +10,7 @@ add_executable(quanta_tests
   test_simulator.cpp
   test_latency.cpp
   test_detailed_latency.cpp
+  test_book_bench.cpp
 )
 target_link_libraries(quanta_tests PRIVATE quanta_core GTest::gtest_main)
 

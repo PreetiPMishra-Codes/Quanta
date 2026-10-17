@@ -6,3 +6,6 @@ build-strict/
 build-asan/
 warnings.txt
 build-release/
+build-prof/
+build-win/
+callgrind.out*
