@@ -6,7 +6,7 @@
 
 [![C++](https://img.shields.io/badge/C%2B%2B-17-00599C?style=for-the-badge&logo=cplusplus&logoColor=white)](#)
 [![OOP](https://img.shields.io/badge/OOP-Coursework-6A5ACD?style=for-the-badge)](#)
-[![Tests](https://img.shields.io/badge/Tests-111%20passing-2E8B57?style=for-the-badge)](#)
+[![Tests](https://img.shields.io/badge/Tests-146%20passing-2E8B57?style=for-the-badge)](#)
 [![Sanitizers](https://img.shields.io/badge/ASan%20%2B%20UBSan-clean-FF8C00?style=for-the-badge)](#)
 
 ---
@@ -63,7 +63,7 @@ Phases 1 to 4 are **built and tested**. Phases 5 to 10 are planned.
 | 2 | Order book | ✅ Built and tested |
 | 3 | Matching engine | ✅ Built and tested |
 | 4 | Trading strategies and workload simulator | ✅ Built and tested |
-| 5 | Benchmarking | ⏳ Planned |
+| 5 | Benchmarking | ✅ Built and tested |
 | 6 | Concurrent processing | ⏳ Planned |
 | 7 | Market data pipeline | ⏳ Planned |
 | 8 | Performance optimization | ⏳ Planned |
