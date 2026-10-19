@@ -72,7 +72,7 @@ Phases 1 to 4 are **built and tested**. Phases 5 to 10 are planned.
 
 ### Verification
 
-- **111 automated tests** (GoogleTest), including property tests with fixed seeds.
+- **146 automated tests** (GoogleTest), including property tests with fixed seeds.
 - Clean under **AddressSanitizer** and **UndefinedBehaviorSanitizer**.
 - Clean build with `-Wall -Wextra -Wpedantic -Wshadow -Wconversion` (0 warnings).
 - **Conservation checks** after simulated runs, including a 1,000,000-event run:
