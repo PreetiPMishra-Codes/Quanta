@@ -53,9 +53,9 @@ The goal is **not** a profitable trading bot. The goal is to understand how the 
 
 ---
 
-## 📌 Current Status (Week 1 complete)
+## 📌 Current Status
 
-Phases 1 to 4 are **built and tested**. Phases 5 to 10 are planned.
+Phases 1 to 5 are **built, tested and measured**. Phases 6 to 10 are planned.
 
 | Phase | Topic | Status |
 |---|---|---|
@@ -63,7 +63,7 @@ Phases 1 to 4 are **built and tested**. Phases 5 to 10 are planned.
 | 2 | Order book | ✅ Built and tested |
 | 3 | Matching engine | ✅ Built and tested |
 | 4 | Trading strategies and workload simulator | ✅ Built and tested |
-| 5 | Benchmarking | ✅ Built and tested |
+| 5 | Benchmarking | ✅ Built, tested and measured |
 | 6 | Concurrent processing | ⏳ Planned |
 | 7 | Market data pipeline | ⏳ Planned |
 | 8 | Performance optimization | ⏳ Planned |
@@ -75,8 +75,7 @@ Phases 1 to 4 are **built and tested**. Phases 5 to 10 are planned.
 - **146 automated tests** (GoogleTest), including property tests with fixed seeds.
 - Clean under **AddressSanitizer** and **UndefinedBehaviorSanitizer**.
 - Clean build with `-Wall -Wextra -Wpedantic -Wshadow -Wconversion` (0 warnings).
-- **Conservation checks** after simulated runs, including a 1,000,000-event run:
-  net position is 0 and total cash is unchanged.
+- **Conservation checks** after simulated runs, including a 1,000,000-event run: net position is 0 and total cash is unchanged.
 - The same seed produces an identical run.
 - The order book is never left crossed (best bid is always below best ask).
 
@@ -87,260 +86,627 @@ sudo apt install -y build-essential cmake git
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j2
 ctest --test-dir build --output-on-failure
-./build/quanta 50000 42      # arguments: number of events, random seed
+./build/quanta 50000 42
 ```
 
-Use `Debug` while developing and `Release` for any timing measurement.
+Arguments:
 
-### Observed simulation behaviour
+```text
+./build/quanta <number_of_events> <random_seed>
+```
 
-Seed 42, 50 traders, 1,000,000 events (measured on the development machine):
+Use `Debug` while developing and `Release` for timing measurements.
+
+---
+
+## 📈 Observed Simulation Behaviour
+
+Seed 42, 50 traders, 1,000,000 events:
 
 | Observation | Result |
 |---|---|
-| Orders rejected by risk checks | 29,519 (about 4.8% of orders) |
+| Orders rejected by risk checks | 29,519 |
 | Rejection reasons | 28,733 position limit, 786 insufficient funds |
-| Trades executed | 375,714 (4,896,633 shares) |
+| Trades executed | 375,714 |
+| Shares traded | 4,896,633 |
 | Self-trades | 0 occurred, 3,972 prevented |
-| Cancel requests that succeeded | 151,412 of 299,759 (the rest targeted orders that had already filled) |
-| Shares conserved / cash conserved | yes / yes |
+| Successful cancels | 151,412 of 299,759 |
+| Shares conserved | Yes |
+| Cash conserved | Yes |
 
-Short runs (20,000 events) produce no risk rejections, so the risk checks are verified by unit tests there and by the long run above.
+Short runs such as 20,000 events may produce no risk rejections, while the longer run exercises the risk-management limits.
 
-### Design decisions
+---
+
+## 🧠 Design Decisions
 
 - **Prices are integer ticks** (1 tick = 1 paisa), never `double`, so matching comparisons are exact.
 - **The order book stores, the matching engine decides.** Each can change independently.
-- **Trades execute at the resting order's price**, so the newcomer gets price improvement.
+- **Trades execute at the resting order's price**, so the newcomer receives price improvement when applicable.
 - **Rejections are result values.** Exceptions are reserved for programmer errors.
-- **Self-trades are prevented** by cancelling the trader's own resting order, which keeps the book uncrossed.
-- **The `Exchange` composes** a risk manager, a matching engine and traders instead of inheriting from them.
-- **Strategies see a read-only `MarketView`** and return `Action` data. They cannot touch the exchange directly.
-
-### Known limitations
-
-- The funds check ignores cash already promised to resting orders.
-- Strategies only observe the market on their own turn.
-- Market-maker quotes are never cancelled by the maker, so stale quotes pile up (visible in the final book of long runs).
-- Random results are reproducible only with the same compiler and standard library.
-- No benchmark has been measured yet.
-
-### Benchmarks
-
-**Not yet measured.** Performance figures will be added only from real runs in Release mode. No value will be fabricated.
+- **Self-trades are prevented** by cancelling the trader's own resting order.
+- **The `Exchange` uses composition** for the risk manager, matching engine and traders instead of inheriting from them.
+- **Strategies see a read-only `MarketView`** and return `Action` data. They cannot directly modify the exchange.
 
 ---
 
-## 🎯 Project Goals
+# 📊 Performance & Benchmarking
 
-QUANTA explores:
+All benchmark measurements below were obtained from the **Release build** using seed `42`.
 
-- 🧩 Object-Oriented Programming
-- ⚡ Low-latency system design
-- 🚀 High-throughput processing
-- 🧵 Concurrency
-- 🧠 Efficient data structures
-- 💾 Memory efficiency
-- 📊 Performance engineering
-- 📡 Event-driven architecture
-- 📈 Scalability
-- 🛡️ Fault tolerance
+These measurements describe this simulator on the development machine. They are **not claims about production stock exchanges or real-world HFT systems**.
 
 ---
 
-## 🏗️ Architecture
+## Baseline Benchmark
 
-| Layer | Contents |
-|---|---|
-| **Simulation** | `Simulator`, `TradingStrategy` (Random, Momentum, MeanReversion, MarketMaking) |
-| **Exchange** | `Exchange` (composes `RiskManager`, `MatchingEngine`, traders) |
-| **Core engine** | `MatchingEngine`, `OrderBook`, `Trade` |
-| **Domain** | `Order` hierarchy, `Trader` hierarchy, core types (`Price`, `Quantity`, `Side`) |
-
-### Class hierarchies
+Configuration:
 
 ```text
-Order                     (id, trader, timestamp)
-|-- TradeOrder            (side, quantity, remaining)
-|   |-- MarketOrder       (trade now at the best available price)
-|   `-- LimitOrder        (trade only at this price or better)
-`-- CancelOrder           (target order id)
-
-Trader
-|-- RetailTrader
-|-- InstitutionalTrader
-`-- AlgorithmicTrader
-
-TradingStrategy
-|-- RandomStrategy
-|-- MomentumStrategy
-|-- MeanReversionStrategy
-`-- MarketMakingStrategy
+Build: Release
+Seed: 42
+Warm-up events: 50,000
+Measured events: 200,000
+Runs: 5
 ```
 
-`CancelOrder` is deliberately separate from `TradeOrder`: a cancel has no side, quantity or price, so inheritance models "is a kind of", not just a shared name.
+### Results
+
+| Metric | Median of 5 runs |
+|---|---:|
+| Mean latency | **520 ns** |
+| P50 | **358 ns** |
+| P95 | **1,110 ns** |
+| P99 | **1,980 ns** |
+| P99.9 | **22,762 ns** |
+| Engine throughput | **1,922,788 orders/s** |
+
+Timer overhead was measured separately at **22 ns**.
+
+The results show why tail latency matters: although the P50 is only 358 ns, the P99.9 reaches 22.762 µs.
 
 ---
 
-## 📖 Order Book and Matching
+## Order-Book Microbenchmark
+
+This benchmark isolates the `OrderBook`.
+
+It does **not** include:
+
+- Matching engine
+- Trading strategies
+- Risk checks
+
+The benchmark measures individual operations in nanoseconds per operation.
+
+Representative median measurements:
+
+| Workload | Cancel | Add | Best Price | Consume |
+|---|---:|---:|---:|---:|
+| 1,000 orders / 50 levels | 68.7 ns | 98.0 ns | 9.3 ns | 180.6 ns |
+| 10,000 orders / 1,000 levels | 90.8 ns | 171.5 ns | 7.0 ns | 101.8 ns |
+| 100,000 orders / 1,000 levels | 344.3 ns | 254.8 ns | 8.7 ns | 144.7 ns |
+
+The benchmark also reports best-batch values and identifies several workloads as noisy. Therefore these numbers should be treated as microbenchmark measurements rather than precise production-performance predictions.
+
+---
+
+## Profile Benchmark
+
+The profile benchmark pooled 5 runs after discarding the first run.
+
+Total latency samples:
 
 ```text
-   SELLERS (asks), lowest price is best
-     100.25  x 300
-     100.20  x 150
-     100.15  x 200   <- best ask
-   ------ spread = 0.05 ------
-     100.10  x 120   <- best bid
-     100.05  x 500
-     100.00  x 100
-   BUYERS (bids), highest price is best
+929,905
 ```
 
-| Rule | Meaning |
-|---|---|
-| Price priority | The best price trades first |
-| Time priority | At equal prices, the earliest order goes first |
-| Resting price rule | The order already waiting sets the trade price |
-| Market orders | Take what is available. Any leftover is discarded |
-| Limit orders | Unfilled quantity rests in the book |
-| Cancel | Only the owner of an order may cancel it |
+### Latency by Work Category
 
-**Data structures:** `std::map` for sorted price levels (`std::greater` for bids), `std::list` per level for stable iterators, and `std::unordered_map` as a cancel index so cancellation finds an order directly instead of scanning the book.
+| Category | Share | P50 | P95 | P99 |
+|---|---:|---:|---:|---:|
+| Limit-rested | 45.3% | 279 ns | 742 ns | 1,166 ns |
+| Limit-traded | 20.3% | 572 ns | 1,777 ns | 2,970 ns |
+| Market | 2.0% | 636 ns | 1,900 ns | 3,110 ns |
+| Cancel-ok | 17.3% | 428 ns | 1,082 ns | 1,702 ns |
+| Cancel-failed | 14.9% | 168 ns | 610 ns | 924 ns |
+| Rejected | 0.2% | 169 ns | 363 ns | 538 ns |
+| **All** | **100.0%** | **329 ns** | **1,132 ns** | **2,038 ns** |
 
----
+### Important Finding
 
-## 🧠 OOP Design
+`limit-traded` operations represent only **20.3% of all samples**, but account for **65.8% of the overall P99 tail**.
 
-| OOP / C++ Concept | Application in QUANTA |
-|---|---|
-| **Encapsulation** | Order book internals and trader accounts are private |
-| **Abstraction** | `Order` and `TradingStrategy` are abstract interfaces |
-| **Inheritance** | `TradeOrder` is the parent of `MarketOrder` and `LimitOrder` |
-| **Polymorphism** | One loop calls `strategy->decide()`. `process()` routes any order type |
-| **Composition** | `Exchange` has a `RiskManager`, `MatchingEngine` and traders |
-| **RAII / Smart pointers** | `unique_ptr` gives each order one clear owner |
-| **STL** | `map`, `list`, `unordered_map`, `vector`, `optional` |
-| **Testing** | Unit tests, property tests and conservation tests |
-
-> Inheritance is not forced to demonstrate OOP. Composition is preferred wherever it gives a better design.
+This suggests that matching and trade-related processing is a major contributor to high-latency events.
 
 ---
 
-## 🛡️ Risk Management
+## Rehash / Tail-Latency Investigation
 
-Lightweight checks that run before an order reaches the book:
+The cancellation index uses:
 
-- Maximum order size (per trader type)
-- Position limit (long or short)
-- Sufficient funds (buys only, using an overflow-safe comparison)
-
-Cancels are not risk-checked, because they only reduce exposure.
-
----
-
-## ⚡ Planned Work
-
-### Low-latency measurement (Phase 5)
-
-Average, P50, P95, P99, P99.9 and maximum latency, plus throughput, measured per pipeline stage (validate, risk, insert, match, trade). Tail latency matters because averages can hide occasional large delays.
-
-### Concurrency (Phase 6)
-
-Two architectures will be compared experimentally:
-
-```text
-A: Shared state                    B: Controlled critical path
-
- Thread --+                         Producers
- Thread --+--> shared book + locks     |
- Thread --+                            v
-                                     Queue --> single matching thread --> book
+```cpp
+std::unordered_map
 ```
 
-### Market data pipeline (Phase 7)
-
-Trade events published through a bounded queue to subscribers, with backpressure.
-
-### Optimization and scaling (Phases 8 and 9)
-
-Order-book representations compared by measurement, followed by synthetic load sweeps (1k to 1M orders/sec). These are synthetic workloads, not claims of real exchange performance.
-
-### Failure simulation (Phase 10)
-
-Slow consumers, queue overload and temporary failures, studying retries, recovery and backpressure.
-
-### Optimization method
+The profile benchmark recorded:
 
 ```text
-1. Establish baseline  ->  2. Identify bottleneck  ->  3. Change one thing
-4. Benchmark again     ->  5. Compare results     ->  6. Explain the trade-off
+Total operations:             929,905
+Operations triggering rehash: 10
+Rehashes among 20 slowest:     5
+```
+
+The slowest observed operation took:
+
+```text
+1,804,692 ns
+```
+
+By comparison, limit-rested operations without rehashing had:
+
+```text
+P50: 279 ns
+P99.9: 8,082 ns
+```
+
+This identifies hash-table reallocation as a possible contributor to extreme latency outliers.
+
+A potential future optimization is to investigate reserving capacity for the cancellation index and then **benchmark the change rather than assuming it improves performance**.
+
+---
+
+# 📈 Load-Level Scaling Experiment
+
+The load-level benchmark changes the workload size and therefore the resulting book size.
+
+It does **not** represent a constant arrival-rate test.
+
+| Events | Orders | Book at End | P50 | P99 | Median Throughput |
+|---:|---:|---:|---:|---:|---:|
+| 1,000 | 989 | 210 | 290 ns | 1,244 ns | 2.30M orders/s |
+| 10,000 | 9,438 | 1,538 | 203 ns | 967 ns | 3.49M orders/s |
+| 100,000 | 92,496 | 14,960 | 187 ns | 1,447 ns | 2.56M orders/s |
+| 1,000,000 | 896,887 | 66,154 | 351 ns | 2,290 ns | 1.75M orders/s |
+
+Several measurements were explicitly marked as noisy by the benchmark.
+
+At the largest tested workload, the resulting book contained **66,154 resting orders**, while median throughput remained approximately **1.75 million orders/s** on the development machine.
+
+P99.9 values at very small workloads should not be over-interpreted because there are too few samples for a reliable percentile estimate.
+
+---
+
+# 🔬 Performance Conclusions
+
+The benchmarks establish a reproducible baseline for future optimization.
+
+The current measurements suggest two interesting optimization directions:
+
+### 1. Matching-related latency
+
+Traded limit orders contribute disproportionately to the latency tail.
+
+Future work can investigate:
+
+- Matching-loop efficiency
+- Memory access patterns
+- Allocation behavior
+- Cache locality
+- Trade creation and settlement overhead
+
+### 2. Cancellation-index rehashing
+
+Rare `std::unordered_map` rehashes produced some of the largest latency outliers.
+
+Future experiments can investigate:
+
+- `reserve()`
+- Load-factor tuning
+- Alternative indexing structures
+- Allocation behavior
+
+The optimization methodology is:
+
+```text
+1. Establish baseline
+          |
+          v
+2. Identify bottleneck
+          |
+          v
+3. Change one thing
+          |
+          v
+4. Benchmark again
+          |
+          v
+5. Compare results
+          |
+          v
+6. Explain the trade-off
 ```
 
 > **Measure first. Optimize second.**
 
 ---
 
-## 🛠️ Technology Stack
+# 🏗️ Architecture
 
-C++17, STL, CMake, GoogleTest, Git, AddressSanitizer, UndefinedBehaviorSanitizer. Planned: `std::thread`, `std::mutex`, `std::atomic`, `std::condition_variable`.
+| Layer | Contents |
+|---|---|
+| **Simulation** | `Simulator`, `TradingStrategy` implementations |
+| **Exchange** | `Exchange`, `RiskManager`, `MatchingEngine`, traders |
+| **Core Engine** | `MatchingEngine`, `OrderBook`, `Trade` |
+| **Domain** | Order hierarchy, Trader hierarchy, core types |
 
 ---
 
-## 📁 Project Structure
+## Class Hierarchies
+
+```text
+Order
+|
+|-- TradeOrder
+|   |
+|   |-- MarketOrder
+|   |
+|   `-- LimitOrder
+|
+`-- CancelOrder
+```
+
+```text
+Trader
+|
+|-- RetailTrader
+|-- InstitutionalTrader
+`-- AlgorithmicTrader
+```
+
+```text
+TradingStrategy
+|
+|-- RandomStrategy
+|-- MomentumStrategy
+|-- MeanReversionStrategy
+`-- MarketMakingStrategy
+```
+
+`CancelOrder` is deliberately separate from `TradeOrder` because a cancellation does not have a side, price or quantity.
+
+---
+
+# 📖 Order Book
+
+The order book follows **price-time priority**.
+
+```text
+   SELLERS / ASKS
+     100.25  x 300
+     100.20  x 150
+     100.15  x 200   <- best ask
+
+   ------ spread ------
+
+     100.10  x 120   <- best bid
+     100.05  x 500
+     100.00  x 100
+   BUYERS / BIDS
+```
+
+### Matching Rules
+
+| Rule | Meaning |
+|---|---|
+| Price priority | Best price trades first |
+| Time priority | Earlier order wins at the same price |
+| Resting price | Resting order determines trade price |
+| Market orders | Consume available liquidity |
+| Limit orders | Unfilled quantity rests in the book |
+| Cancel | Only the owner can cancel an order |
+
+### Data Structures
+
+The order book uses:
+
+- `std::map` for sorted price levels
+- `std::list` for stable order iterators at each price level
+- `std::unordered_map` for direct cancellation lookup
+
+This avoids scanning the entire book when cancelling an order.
+
+---
+
+# 🧠 OOP Design
+
+| OOP / C++ Concept | Application in QUANTA |
+|---|---|
+| **Encapsulation** | Order-book internals and trader state are private |
+| **Abstraction** | `Order` and `TradingStrategy` provide abstract interfaces |
+| **Inheritance** | `TradeOrder` is the parent of `MarketOrder` and `LimitOrder` |
+| **Polymorphism** | Strategy and order interfaces allow different implementations |
+| **Composition** | `Exchange` contains a risk manager and matching engine |
+| **RAII / Smart pointers** | `unique_ptr` provides clear ownership |
+| **STL** | `map`, `list`, `unordered_map`, `vector`, `optional` |
+| **Testing** | Unit, property and conservation tests |
+
+> Inheritance is not used merely to demonstrate OOP. Composition is preferred where it produces a cleaner design.
+
+---
+
+# 🛡️ Risk Management
+
+Risk checks occur before an order reaches the order book.
+
+The current risk manager checks:
+
+- Maximum order size
+- Position limits
+- Sufficient funds for purchases
+
+Cancels do not require risk approval because cancelling an order reduces exposure.
+
+Orders that fail validation return a reason code rather than using exceptions for normal control flow.
+
+---
+
+# 🧪 Testing & Correctness
+
+QUANTA contains **146 automated GoogleTest tests**.
+
+The test suite covers:
+
+- Order creation
+- Order validation
+- Order-book insertion
+- Price-time priority
+- Matching
+- Market orders
+- Limit orders
+- Cancellations
+- Risk checks
+- Trader behavior
+- Strategies
+- Simulation invariants
+- Conservation properties
+- Deterministic behavior
+
+The project also uses:
+
+```text
+AddressSanitizer
+UndefinedBehaviorSanitizer
+```
+
+Correctness checks include:
+
+```text
+Net position = 0
+Cash conserved = yes
+Best bid < best ask
+Self-trades prevented
+Same seed -> deterministic output
+```
+
+---
+
+# ⚡ Planned Work
+
+## Concurrency
+
+Two possible architectures can be experimentally compared:
+
+```text
+A: Shared State
+
+Thread --+
+Thread --+--> Shared Order Book + Locks
+Thread --+
+
+
+B: Controlled Critical Path
+
+Producers
+    |
+    v
+ Queue
+    |
+    v
+Single Matching Thread
+    |
+    v
+Order Book
+```
+
+The purpose would be to study throughput, contention, latency and tail behavior rather than assuming that more threads automatically improve performance.
+
+---
+
+## Market Data Pipeline
+
+Future work could publish trade events through a bounded queue to subscribers, allowing experiments with:
+
+- Backpressure
+- Queue capacity
+- Consumer lag
+- Event delivery
+- Throughput
+
+---
+
+## Performance Optimization
+
+The completed benchmarks provide the baseline.
+
+Future experiments may investigate:
+
+- Order-book representations
+- Memory allocation
+- Hash-table capacity management
+- Cache locality
+- Matching-loop optimization
+
+Every optimization should be measured against the existing baseline.
+
+---
+
+## Scaling Experiments
+
+Future work can explore larger synthetic workloads and different book sizes.
+
+These experiments would be synthetic and should not be interpreted as claims about real-world exchange capacity.
+
+---
+
+## Failure Simulation
+
+Future experiments may model:
+
+- Slow consumers
+- Queue overload
+- Temporary component failures
+- Recovery
+- Backpressure
+
+---
+
+# 🛠️ Technology Stack
+
+- **C++17**
+- **STL**
+- **CMake**
+- **GoogleTest**
+- **Git**
+- **AddressSanitizer**
+- **UndefinedBehaviorSanitizer**
+- **MinGW-w64 / WSL** for the Windows build workflow
+
+Planned concurrency technologies:
+
+```text
+std::thread
+std::mutex
+std::atomic
+std::condition_variable
+```
+
+---
+
+# 📁 Project Structure
 
 ```text
 QUANTA/
+|
 |-- include/
-|   |-- core/          types.hpp
-|   |-- orders/        order.hpp
-|   |-- traders/       trader.hpp
-|   |-- exchange/      order_book.hpp, matching_engine.hpp, trade.hpp, exchange.hpp
-|   |-- risk/          risk_manager.hpp
-|   |-- strategies/    strategy.hpp, strategies.hpp
-|   |-- simulation/    simulator.hpp
-|   |-- market_data/   (planned)
-|   `-- benchmark/     (planned)
-|-- src/               implementations, plus main.cpp
-|-- tests/             GoogleTest suites
-|-- benchmarks/        (planned)
+|   |-- core/
+|   |   `-- types.hpp
+|   |
+|   |-- orders/
+|   |   `-- order.hpp
+|   |
+|   |-- traders/
+|   |   `-- trader.hpp
+|   |
+|   |-- exchange/
+|   |   |-- order_book.hpp
+|   |   |-- matching_engine.hpp
+|   |   |-- trade.hpp
+|   |   `-- exchange.hpp
+|   |
+|   |-- risk/
+|   |   `-- risk_manager.hpp
+|   |
+|   |-- strategies/
+|   |   |-- strategy.hpp
+|   |   `-- strategies.hpp
+|   |
+|   `-- simulation/
+|       `-- simulator.hpp
+|
+|-- src/
+|   |-- implementations
+|   `-- main.cpp
+|
+|-- tests/
+|   `-- GoogleTest suites
+|
+|-- benchmarks/
+|   |-- bench_baseline
+|   |-- bench_book
+|   |-- bench_profile
+|   `-- measured CSV results
+|
 |-- docs/
+|
 |-- CMakeLists.txt
+|
 `-- README.md
 ```
 
 ---
 
-## 🔬 What Makes QUANTA Different?
+# 🔬 What Makes QUANTA Different?
 
-QUANTA deliberately avoids being a generic stock-management system, a portfolio manager, a price predictor, a machine-learning project, a CRUD application, or a fake HFT system making unrealistic performance claims.
+QUANTA deliberately avoids being:
 
----
+- A generic stock-management system
+- A portfolio manager
+- A CRUD application
+- A price prediction model
+- A machine-learning project
+- A fake HFT system making unrealistic performance claims
 
-## 🎓 Learning Outcomes
-
-By completing QUANTA, the goal is to confidently explain:
-
-- How an exchange processes large numbers of orders
-- How an order book works internally
-- Why some data structures suit latency-sensitive workloads
-- Why memory allocation and cache locality affect performance
-- Why adding threads can make a system slower
-- How locks affect latency
-- How queues and backpressure work
-- How P99 latency is measured
-- How bottlenecks are identified
-- What happens when a component fails
+Instead, it focuses on the **engineering infrastructure behind order processing**.
 
 ---
 
-## 📌 Project Philosophy
+# 🎓 Learning Outcomes
 
-QUANTA is not an unrealistic replica of a production exchange. It is a **learning-focused systems-engineering simulator** that connects OOP concepts with real problems in **performance, concurrency, market infrastructure, scalability and reliability**. The emphasis is on understanding **why** an architecture works, measuring its behaviour, and learning from its limitations.
+The project provides practical experience with:
+
+- Object-oriented design
+- Inheritance and polymorphism
+- Composition
+- Encapsulation
+- Order-book data structures
+- Matching algorithms
+- Risk management
+- Deterministic simulation
+- Property-based testing
+- Performance measurement
+- Tail latency
+- P99/P99.9 analysis
+- Memory behavior
+- Hash-table behavior
+- Systems benchmarking
+- Identifying performance bottlenecks
+
+---
+
+# 📌 Project Philosophy
+
+QUANTA is not an unrealistic replica of a production exchange.
+
+It is a **learning-focused systems-engineering simulator** connecting OOP concepts with real problems in:
+
+- Performance
+- Market infrastructure
+- Concurrency
+- Scalability
+- Reliability
+- Data structures
+
+The emphasis is on understanding **why** an architecture works, measuring its behavior, and learning from its limitations.
+
+> **Simulate the market. Measure the system. Understand the infrastructure.**
 
 ---
 
 ## 👤 Author
 
-**Preeti Pragyan Mishra**  |  Student ID: `ID-B125085`  |  Course: Object-Oriented Programming
+**Preeti Pragyan Mishra**
 
-**Simulate the market. Measure the system. Understand the infrastructure.**
+Student ID: `ID-B125085`
+
+Course: **Object-Oriented Programming**
